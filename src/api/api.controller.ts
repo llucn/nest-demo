@@ -1,4 +1,7 @@
 import { Body, Controller, Get, Post, Query, Redirect } from "@nestjs/common";
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { RequestPresigningArguments } from "@smithy/types";
 
 const ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsbHUiLCJuYW1lIjoiTGFuZSBMdSIsImlhdCI6MTUxNjIzOTAyMn0.C7QX82fv-7HhUnJx_OFChP8u5nSbyROiBzycF13y_Qc';
 const REFRESH_TOKEN = 'b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad';
@@ -60,5 +63,31 @@ export class ApiController {
   logout(@Body() { refresh_token }: { refresh_token: string }) {
     console.log('logout token: ', refresh_token);
     return {};
+  }
+
+  @Post('s3/signedUrl')
+  async signedUrl(@Body() { s3Object, options }: {
+    s3Object: { 
+      bucket: string, 
+      key: string,
+      contentDisposition?: 'attachment' | 'inline' 
+    },
+    options?: RequestPresigningArguments,
+  }, ) {
+    const s3Client = new S3Client();
+    const url = await getSignedUrl(
+			s3Client,
+			new GetObjectCommand({
+				Bucket: s3Object.bucket,
+				Key: s3Object.key,
+        ResponseContentDisposition: s3Object.contentDisposition || 'attachment'
+			}),
+			{
+				expiresIn: options?.expiresIn || 1800,
+			}
+		);
+    return {
+      url: url
+    };
   }
 }
