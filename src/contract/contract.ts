@@ -1,6 +1,8 @@
 import { initContract } from "@ts-rest/core";
 import { z } from "zod";
-import { RequestPresigningArguments } from "@smithy/types";
+import { extendZodWithOpenApi } from '@anatine/zod-openapi';
+
+extendZodWithOpenApi(z);
 
 const c = initContract();
 
@@ -20,24 +22,22 @@ const UserSchema = z.object({
   last_name: z.string()
 });
 
-export interface CreateSignedUrlInput {
-  s3Object: {
-    bucket: string,
-    key: string,
-    contentDisposition?: 'attachment' | 'inline' 
-  },
-  options?: RequestPresigningArguments,
-}
-
 export const contract = c.router({
   login: {
     method: 'GET',
     path: '/api/1/auth/login',
     query: z.object({
-      returnTo: z.string().default('/')
+      returnTo: z.string().default('/').openapi({
+        description: "Return to URL after login successfully"
+      })
     }),
     responses: {
-      302: z.object({ url: z.string() })
+      302: z.object({
+        url: z.string().openapi({
+          title: 'URL',
+          description: 'Redirect URL',
+        })
+      })
     },
     summary: 'Login'
   },
@@ -61,12 +61,18 @@ export const contract = c.router({
     method: 'POST',
     path: '/api/1/auth/refresh',
     body: z.object({
-      refresh_token: z.string()
+      refresh_token: z.string().openapi({
+        description: 'Refresh token'
+      })
     }),
     responses: {
       200: z.object({
-        token: z.string(),
-        refresh: z.string()
+        token: z.string().openapi({
+          description: 'Access token'
+        }),
+        refresh: z.string().openapi({
+          description: 'Refresh token'
+        })
       })
     },
     summary: 'Refresh token'
@@ -85,12 +91,27 @@ export const contract = c.router({
   createSignedUrl: {
     method: 'POST',
     path: '/api/s3/signedUrl',
-    body: c.type<CreateSignedUrlInput>(),
+    body: z.object({
+      s3Object: z.object({
+        bucket: z.string(),
+        key: z.string(),
+        contentDisposition: z.enum(['attachment', 'inline']).default('inline')
+      }),
+      options: z.object({
+        expiresIn: z.number().max(43200, { 
+          message: "expiresIn must be less than or equal to 43200 seconds"
+        }).default(3600).optional().openapi({
+          description: "Expires in seconds"
+        }),
+        unhoistableHeaders: z.array(z.string()).optional(),
+        hoistableHeaders: z.array(z.string()).optional(),
+      }).optional()
+    }),
     responses: {
       200: z.object({
-        url: z.string()
+        url: z.string().url()
       })
     },
-    summary: 'Create signed url for s3 obejct'
+    summary: 'Create signed URL for S3 obejct'
   }
 });
