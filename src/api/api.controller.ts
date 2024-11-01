@@ -1,18 +1,22 @@
-import { Body, Controller, Get, Post, Query, Redirect } from "@nestjs/common";
+import { Controller, Redirect, Post, Body } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { RequestPresigningArguments } from "@smithy/types";
+import { nestControllerContract, NestRequestShapes, NestResponseShapes, TsRest, TsRestRequest } from "@ts-rest/nest";
+import { contract } from "src/contract/contract";
 
-const ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsbHUiLCJuYW1lIjoiTGFuZSBMdSIsImlhdCI6MTUxNjIzOTAyMn0.C7QX82fv-7HhUnJx_OFChP8u5nSbyROiBzycF13y_Qc';
-const REFRESH_TOKEN = 'b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad';
-const API_VERSION = '1';
+const c = nestControllerContract(contract);
+type RequestShapes = NestRequestShapes<typeof c>;
+type ResponseShapes = NestResponseShapes<typeof c>;
 
-@Controller('api')
+console.log(process.env);
+@Controller()
 export class ApiController {
-  
-  @Get('1/auth/login')
+  constructor(private configService: ConfigService) {}
+
+  @TsRest(c.login)
   @Redirect('/', 302)
-  login(@Query('returnTo') returnTo: string) {
+  async login(@TsRestRequest() { query: { returnTo } }: RequestShapes['login']) {
     console.log('returnTo: ', returnTo);
     let url = returnTo || '/';
     if (url.indexOf('?') >= 0) {
@@ -21,21 +25,21 @@ export class ApiController {
       url += '?';
     }
 
-    url += `token=${ACCESS_TOKEN}&refresh=${REFRESH_TOKEN}`;
+    url += `token=${this.configService.get<string>('DEFAULT_ACCESS_TOKEN')}&refresh=${this.configService.get<string>('DEFAULT_REFRESH_TOKEN')}`;
     console.log('url: ', url);
     return { url };
   }
 
-  @Get('info')
-  info() {
+  @TsRest(c.info)
+  async getInfo() {
     return {
-      version: API_VERSION,
+      version: this.configService.get<string>('API_VERSION'),
       manifest: [],
     };
   }
 
-  @Get('auth/me')
-  me() {
+  @TsRest(c.getMe)
+  async getMe() {
     return {
       id: 100,
       created_at: "Wed, 09 Oct 2024 08:42:21 GMT",
@@ -48,32 +52,36 @@ export class ApiController {
     };
   }
 
-  @Post('1/auth/refresh')
-  refresh(@Body() { refresh_token }: { refresh_token: string }) {
+  @TsRest(c.refreshToken)
+  async refresh(
+    @TsRestRequest() { body: { refresh_token } }: RequestShapes['refreshToken'],
+  ): Promise<ResponseShapes['refreshToken']> {
     console.log('refresh token: ', refresh_token);
-    const token = ACCESS_TOKEN;
-    const refresh = REFRESH_TOKEN;
+    const token = this.configService.get<string>('DEFAULT_ACCESS_TOKEN');
+    const refresh = this.configService.get<string>('DEFAULT_REFRESH_TOKEN');
     return {
-      token,
-      refresh,
+      status: 200,
+      body: {
+        token,
+        refresh,
+      }
     }
   }
 
-  @Post('auth/logout')
-  logout(@Body() { refresh_token }: { refresh_token: string }) {
+  @TsRest(c.logout)
+  async logout(
+    @TsRestRequest() { body: { refresh_token } }: RequestShapes['logout'],
+  ) {
     console.log('logout token: ', refresh_token);
-    return {};
+    return {
+      status: 200
+    };
   }
 
-  @Post('s3/signedUrl')
-  async signedUrl(@Body() { s3Object, options }: {
-    s3Object: { 
-      bucket: string, 
-      key: string,
-      contentDisposition?: 'attachment' | 'inline' 
-    },
-    options?: RequestPresigningArguments,
-  }, ) {
+  @TsRest(c.createSignedUrl)
+  async signedUrl(
+    @TsRestRequest() { body: { s3Object, options } }: RequestShapes['createSignedUrl'],
+  ) {
     const s3Client = new S3Client();
     const url = await getSignedUrl(
 			s3Client,
