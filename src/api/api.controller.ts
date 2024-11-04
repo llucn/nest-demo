@@ -9,10 +9,9 @@ const c = nestControllerContract(contract);
 type RequestShapes = NestRequestShapes<typeof c>;
 type ResponseShapes = NestResponseShapes<typeof c>;
 
-console.log(process.env);
 @Controller()
 export class ApiController {
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
 
   @TsRest(c.login)
   @Redirect('/', 302)
@@ -33,22 +32,28 @@ export class ApiController {
   @TsRest(c.info)
   async getInfo() {
     return {
-      version: this.configService.get<string>('API_VERSION'),
-      manifest: [],
+      status: 200,
+      body: {
+        version: this.configService.get<string>('API_VERSION'),
+        manifest: [],
+      }
     };
   }
 
   @TsRest(c.getMe)
   async getMe() {
     return {
-      id: 100,
-      created_at: "Wed, 09 Oct 2024 08:42:21 GMT",
-      updated_at: "Wed, 09 Oct 2024 08:42:21 GMT",
-      active: true,
-      client_id: 100,
-      primary_email: "loremipsum@dolorsit.com",
-      first_name: "Lorem",
-      last_name: "Ipsum",
+      status: 200,
+      body: {
+        id: 100,
+        created_at: "Wed, 09 Oct 2024 08:42:21 GMT",
+        updated_at: "Wed, 09 Oct 2024 08:42:21 GMT",
+        active: true,
+        client_id: 100,
+        primary_email: "loremipsum@dolorsit.com",
+        first_name: "Lorem",
+        last_name: "Ipsum",
+      }
     };
   }
 
@@ -84,18 +89,21 @@ export class ApiController {
   ) {
     const s3Client = new S3Client();
     const url = await getSignedUrl(
-			s3Client,
-			new GetObjectCommand({
-				Bucket: s3Object.bucket,
-				Key: s3Object.key,
+      s3Client,
+      new GetObjectCommand({
+        Bucket: s3Object.bucket,
+        Key: s3Object.key,
         ResponseContentDisposition: s3Object.contentDisposition || 'attachment'
-			}),
-			{
-				expiresIn: options?.expiresIn || 1800,
-			}
-		);
+      }),
+      {
+        expiresIn: options?.expiresIn || 1800,
+      }
+    );
     return {
-      url: url
+      status: 200,
+      body: {
+        url: url
+      }
     };
   }
 }
