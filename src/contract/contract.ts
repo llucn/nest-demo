@@ -88,30 +88,24 @@ export const contract = c.router({
     },
     summary: 'Logout'
   },
-  createSignedUrl: {
-    method: 'POST',
-    path: '/api/s3/signedUrl',
-    body: z.object({
-      s3Object: z.object({
-        bucket: z.string(),
-        key: z.string(),
-        contentDisposition: z.enum(['attachment', 'inline']).default('inline')
+  getAsset: {
+    method: 'GET',
+    path: '/api/asset/*:id',
+    query: z.object({
+      format: z.enum(['json', 'redirect']).default('redirect'),
+      expiresIn: z.coerce.number().max(43200, {
+        message: "expiresIn must be less than or equal to 43200 seconds"
+      }).default(3600).openapi({
+        description: "Expires in seconds"
       }),
-      options: z.object({
-        expiresIn: z.number().max(43200, { 
-          message: "expiresIn must be less than or equal to 43200 seconds"
-        }).default(3600).optional().openapi({
-          description: "Expires in seconds"
-        }),
-        unhoistableHeaders: z.array(z.string()).optional(),
-        hoistableHeaders: z.array(z.string()).optional(),
-      }).optional()
+      contentDisposition: z.enum(['attachment', 'inline']).default('inline'),
     }),
     responses: {
       200: z.object({
         url: z.string().url()
-      })
+      }),
+      302: z.object({}),
     },
-    summary: 'Create signed URL for S3 obejct'
+    summary: 'Download asset'
   }
 });
