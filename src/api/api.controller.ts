@@ -1,5 +1,6 @@
-import { Controller, Redirect, Post, Body } from "@nestjs/common";
+import { Controller, Redirect, Res, HttpStatus } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Response } from 'express';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { nestControllerContract, NestRequestShapes, NestResponseShapes, TsRest, TsRestRequest } from "@ts-rest/nest";
@@ -83,27 +84,46 @@ export class ApiController {
     };
   }
 
-  @TsRest(c.createSignedUrl)
-  async signedUrl(
-    @TsRestRequest() { body: { s3Object, options } }: RequestShapes['createSignedUrl'],
+  @TsRest(c.getAsset)
+  async getAsset(
+    @TsRestRequest() { query: { format, expiresIn, contentDisposition }, params }: RequestShapes['getAsset'] & { params: Record<string, string> },
+    @Res() res: Response
   ) {
+    // console.log('params: ', params);
+    const { bucket, key } = this.getS3ObjectDetail(params);
     const s3Client = new S3Client();
     const url = await getSignedUrl(
       s3Client,
       new GetObjectCommand({
-        Bucket: s3Object.bucket,
-        Key: s3Object.key,
-        ResponseContentDisposition: s3Object.contentDisposition || 'attachment'
+        Bucket: bucket,
+        Key: key,
+        ResponseContentDisposition: contentDisposition
       }),
       {
-        expiresIn: options?.expiresIn || 1800,
+        expiresIn: expiresIn
       }
     );
-    return {
-      status: 200,
-      body: {
-        url: url
-      }
-    };
+
+    if (format === 'json') {
+      res.status(HttpStatus.OK).json({ url });
+    } else if (format === 'redirect') {
+      res.status(HttpStatus.MOVED_PERMANENTLY).redirect(url);
+    } 
+  }
+
+  getS3ObjectDetail(params: Record<string, string>): {
+    bucket: string;
+    key: string;
+  } {
+    // URI format: 'bucket/path/of/key'
+    let uri = params['0'] + params.id;
+    if (uri.startsWith('*')) {
+      uri = uri.substring(1);
+    }
+    const ary = uri.split('/');
+    const bucket = ary[0];
+    const key = ary.slice(1).join('/');
+    // console.log('object detail, bucket: ', bucket, ', key: ', key);
+    return {bucket, key};
   }
 }
