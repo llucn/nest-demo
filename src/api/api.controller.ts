@@ -1,10 +1,16 @@
-import { Controller, Redirect, Res, HttpStatus } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Controller, Redirect, Res, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { nestControllerContract, NestRequestShapes, NestResponseShapes, TsRest, TsRestRequest } from "@ts-rest/nest";
-import { contract } from "src/contract/contract";
+import {
+  nestControllerContract,
+  NestRequestShapes,
+  NestResponseShapes,
+  TsRest,
+  TsRestRequest,
+} from '@ts-rest/nest';
+import { contract } from 'src/contract/contract';
 
 const c = nestControllerContract(contract);
 type RequestShapes = NestRequestShapes<typeof c>;
@@ -12,11 +18,13 @@ type ResponseShapes = NestResponseShapes<typeof c>;
 
 @Controller()
 export class ApiController {
-  constructor(private configService: ConfigService) { }
+  constructor(private configService: ConfigService) {}
 
   @TsRest(c.login)
   @Redirect('/', 302)
-  async login(@TsRestRequest() { query: { returnTo } }: RequestShapes['login']) {
+  async login(
+    @TsRestRequest() { query: { returnTo } }: RequestShapes['login'],
+  ) {
     console.log('returnTo: ', returnTo);
     let url = returnTo || '/';
     if (url.indexOf('?') >= 0) {
@@ -37,7 +45,7 @@ export class ApiController {
       body: {
         version: this.configService.get<string>('API_VERSION'),
         manifest: [],
-      }
+      },
     };
   }
 
@@ -47,14 +55,14 @@ export class ApiController {
       status: 200,
       body: {
         id: 100,
-        created_at: "Wed, 09 Oct 2024 08:42:21 GMT",
-        updated_at: "Wed, 09 Oct 2024 08:42:21 GMT",
+        created_at: 'Wed, 09 Oct 2024 08:42:21 GMT',
+        updated_at: 'Wed, 09 Oct 2024 08:42:21 GMT',
         active: true,
         client_id: 100,
-        primary_email: "loremipsum@dolorsit.com",
-        first_name: "Lorem",
-        last_name: "Ipsum",
-      }
+        primary_email: 'loremipsum@dolorsit.com',
+        first_name: 'Lorem',
+        last_name: 'Ipsum',
+      },
     };
   }
 
@@ -70,8 +78,8 @@ export class ApiController {
       body: {
         token,
         refresh,
-      }
-    }
+      },
+    };
   }
 
   @TsRest(c.logout)
@@ -80,14 +88,18 @@ export class ApiController {
   ) {
     console.log('logout token: ', refresh_token);
     return {
-      status: 200
+      status: 200,
     };
   }
 
   @TsRest(c.getAsset)
   async getAsset(
-    @TsRestRequest() { query: { format, expiresIn, contentDisposition }, params }: RequestShapes['getAsset'] & { params: Record<string, string> },
-    @Res() res: Response
+    @TsRestRequest()
+    {
+      query: { format, expiresIn, contentDisposition },
+      params,
+    }: RequestShapes['getAsset'] & { params: Record<string, string> },
+    @Res() res: Response,
   ) {
     // console.log('params: ', params);
     const { bucket, key } = this.getS3ObjectDetail(params);
@@ -97,18 +109,18 @@ export class ApiController {
       new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-        ResponseContentDisposition: contentDisposition
+        ResponseContentDisposition: contentDisposition,
       }),
       {
-        expiresIn: expiresIn
-      }
+        expiresIn: expiresIn,
+      },
     );
 
     if (format === 'json') {
       res.status(HttpStatus.OK).json({ url });
     } else if (format === 'redirect') {
       res.status(HttpStatus.MOVED_PERMANENTLY).redirect(url);
-    } 
+    }
   }
 
   getS3ObjectDetail(params: Record<string, string>): {
@@ -124,6 +136,6 @@ export class ApiController {
     const bucket = ary[0];
     const key = ary.slice(1).join('/');
     // console.log('object detail, bucket: ', bucket, ', key: ', key);
-    return {bucket, key};
+    return { bucket, key };
   }
 }

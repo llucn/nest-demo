@@ -1,10 +1,18 @@
-import { Controller, Get, Req, Redirect, Param, Body, Post } from "@nestjs/common";
-import { Request } from "express";
+import {
+  Controller,
+  Get,
+  Req,
+  Redirect,
+  Param,
+  Body,
+  Post,
+} from '@nestjs/common';
+import { Request } from 'express';
 import { CatsService } from './cats.service';
-import { Cat } from "./interfaces/cat.interface";
+import { Cat } from './interfaces/cat.interface';
 
 type Message = {
-  message: string,
+  message: string;
 };
 
 @Controller('cats')
