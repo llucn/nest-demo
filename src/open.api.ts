@@ -1,5 +1,5 @@
 import { generateOpenApi } from '@ts-rest/open-api';
-import { contract } from "src/contract/contract";
+import { contract } from 'src/contract/contract';
 
 export const openApiDocument = generateOpenApi(contract, {
   info: {
